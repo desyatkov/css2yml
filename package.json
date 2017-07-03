@@ -1,0 +1,17 @@
+{
+  "name": "postcss-sass2yaml",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^4.17.4",
+    "postcss": "^6.0.5",
+    "postcss-resolve-nested-selector": "^0.1.1",
+    "ramda": "^0.24.1"
+  }
+}
