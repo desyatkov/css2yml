@@ -8,6 +8,7 @@ const _ = require('lodash');
 const rulesObject = []
 const default_css_attributes = {}
 const css_form = []
+const newList = [];
 module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
     return function (css) {
         options = options || {};
@@ -37,31 +38,34 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
                 });
         });
         
-        
         const byGroup = R.groupBy(function(cat) {
             const selector = cat.key;
             const key = R.uniq(R.match(/(cl|id)_.*?(?=-)/g, selector));
             return  key.length ? R.last(key) : "other" 
         });
 
-        const er = byGroup(rulesObject);
+        const reduse = v => newList.push(R.pick(['key', 'label','type'], v))
+        const erList = R.forEachObjIndexed(reduse, rulesObject)
+        const er = byGroup( newList );
         R.map(e => {  default_css_attributes[e.key] = e.value }, rulesObject);
         
-        _.map(er, (v,k) => {
-            let obj = {
-                type: 'group',
-                label: k,
-                children: v
-            }
+        _.map(er, (v,k) => { 
+            const obj = { type: 'group',  label: k, children: v };
             css_form.push(obj)
         });
-
-        
-        console.log(yaml.dump({default_css_attributes, rulesObject}, {
+               
+        const fileContent = yaml.dump({default_css_attributes, css_form}, {
             styles: {
                 '!!int'  : 'hexadecimal',
                 '!!null' : 'camelcase'
             }
-        }));
+        });
+
+        const filepath = "./dest/file.yml";
+
+        fs.writeFile(filepath, fileContent, (err) => {
+            if (err) throw err;
+            console.log("YML was succesfully saved!");
+        }); 
     }
 });
