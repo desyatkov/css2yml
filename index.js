@@ -1,14 +1,15 @@
 const postcss = require('postcss');
 const resolvedNestedSelector = require('postcss-resolve-nested-selector');
 const yaml = require('js-yaml');
-const fs   = require('fs');
+const fs = require('fs');
 const R = require('ramda');
 const _ = require('lodash');
+const types = require('./types.js');
+var username = require('git-user-name');
 
 const rulesObject = []
-const default_css_attributes = {}
-const css_form = []
 const newList = [];
+
 module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
     return function (css) {
         options = options || {};
@@ -18,8 +19,9 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
                     rule.nodes.forEach(function(node){
                         const rules = resolvedNestedSelector(selector, rule);
                         if( node.prop, node.value) {
-                            const object = {type: 'dimension'}
                             
+                            const object = {}
+
                             let selector = R.pipe(
                                 R.replace( /\s+/g,'-' ),
                                 R.replace('.','_cl_' ),
@@ -27,34 +29,46 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
                             )(rules[0]);
                             
                             const key = `${selector}---${node.prop}`;
-
+                            
+                            const newType = types.getType(node.prop);
+                            object.type = newType ? newType.type : 'undefined';
+                            if(object.type === 'select') {
+                                object.options = newType.options
+                            }
                             object.key = key;
                             object.value = node.value;
                             object.label = R.replace( /-+/g,' ', key )
                             rulesObject.push(object);
-                            node.prop = `$${key}`
+                            node.value = `$${key}`
                         }
                     })
                 });
         });
         
-        const byGroup = R.groupBy(function(cat) {
-            const selector = cat.key;
-            const key = R.uniq(R.match(/(cl|id)_.*?(?=-)/g, selector));
-            return  key.length ? R.last(key) : "other" 
-        });
+        const groupLogic = (cat) => {
+            const key = R.uniq(R.match(/(cl|id)_.*?(?=-)/g, cat.key));
+            return key.length ? R.last(key) : "other"
+        }
+        const addF = (a) => {
+           return { type: 'group',  label: a[0], children: a[1] };
+        }
+        const transform = R.pipe(
+            R.map((o) => R.pick(['key', 'label', 'type', 'options'], o)),
+            R.filter((a) => a.type !== 'undefined'),
+            R.groupBy(groupLogic),
+            R.toPairs,
+            R.map( (o) => addF(o) )
+        )
 
-        const reduse = v => newList.push(R.pick(['key', 'label','type'], v))
-        const erList = R.forEachObjIndexed(reduse, rulesObject)
-        const er = byGroup( newList );
-        R.map(e => {  default_css_attributes[e.key] = e.value }, rulesObject);
-        
-        _.map(er, (v,k) => { 
-            const obj = { type: 'group',  label: k, children: v };
-            css_form.push(obj)
-        });
-               
-        const fileContent = yaml.dump({default_css_attributes, css_form}, {
+           
+        const default_css_attributes = R.zipObj( 
+                                            R.pluck('key', rulesObject),
+                                            R.pluck('value',rulesObject)
+                                        );
+        const css_form = transform(rulesObject);
+
+        const fileContent = yaml.dump( {default_css_attributes, css_form }, {
+            flowLevel: 5,
             styles: {
                 '!!int'  : 'hexadecimal',
                 '!!null' : 'camelcase'
@@ -65,7 +79,7 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
 
         fs.writeFile(filepath, fileContent, (err) => {
             if (err) throw err;
-            console.log("YML was succesfully saved!");
+            console.log(`🎸 ${username().split(' ')[0]} your YML was succesfully saved! path: ${filepath}`);
         }); 
     }
 });

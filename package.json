@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "git-user-name": "^1.2.0",
     "js-yaml": "^3.8.4",
     "lodash": "^4.17.4",
     "postcss": "^6.0.5",
