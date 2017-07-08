@@ -7,7 +7,7 @@ const _ = require('lodash');
 const types = require('./types.js');
 var username = require('git-user-name');
 
-const rulesObject = []
+const ruls = []
 const newList = [];
 
 module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
@@ -38,7 +38,7 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
                             object.key = key;
                             object.value = node.value;
                             object.label = R.replace( /-+/g,' ', key )
-                            rulesObject.push(object);
+                            ruls.push(object);
                             node.value = `$${key}`
                         }
                     })
@@ -49,26 +49,21 @@ module.exports = postcss.plugin('sass2yaml', function sass2yaml(options) {
             const key = R.uniq(R.match(/(cl|id)_.*?(?=-)/g, cat.key));
             return key.length ? R.last(key) : "other"
         }
-        const addF = (a) => {
-           return { type: 'group',  label: a[0], children: a[1] };
-        }
+        
         const transform = R.pipe(
             R.map((o) => R.pick(['key', 'label', 'type', 'options'], o)),
             R.filter((a) => a.type !== 'undefined'),
             R.groupBy(groupLogic),
             R.toPairs,
-            R.map( (o) => addF(o) )
+            R.map((o) => ({ type:'group', label:o[0], children:o[1]} ))
         )
 
-           
-        const default_css_attributes = R.zipObj( 
-                                            R.pluck('key', rulesObject),
-                                            R.pluck('value',rulesObject)
-                                        );
-        const css_form = transform(rulesObject);
+        const defCss = R.zipObj( R.pluck('key', ruls), R.pluck('value',ruls));
+        const css_form = transform(ruls);
 
-        const fileContent = yaml.dump( {default_css_attributes, css_form }, {
+        const fileContent = yaml.dump({default_css_attributes: defCss, css_form }, {
             flowLevel: 5,
+            noCompatMode: true,
             styles: {
                 '!!int'  : 'hexadecimal',
                 '!!null' : 'camelcase'
